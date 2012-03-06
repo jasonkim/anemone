@@ -1,40 +1,75 @@
-require File.dirname(__FILE__) + '/spec_helper'
-%w[pstore tokyo_cabinet mongodb redis].each { |file| require "anemone/storage/#{file}.rb" }
+$:.unshift(File.dirname(__FILE__))
+require 'spec_helper'
+
+%w[pstore tokyo_cabinet kyoto_cabinet sqlite3 mongodb redis].each { |file| require "anemone/storage/#{file}.rb" }
 
 module Anemone
   describe Storage do
 
-    it "should have a class method to produce a Hash" do
-      Anemone::Storage.should respond_to(:Hash)
-      Anemone::Storage.Hash.should be_an_instance_of(Hash)
+    describe ".Hash" do
+      it "returns a Hash adapter" do
+        Anemone::Storage.Hash.should be_an_instance_of(Hash)
+      end
     end
 
-    it "should have a class method to produce a PStore" do
-      test_file = 'test.pstore'
-      Anemone::Storage.should respond_to(:PStore)
-      Anemone::Storage.PStore(test_file).should be_an_instance_of(Anemone::Storage::PStore)
+    describe ".PStore" do
+      it "returns a PStore adapter" do
+        test_file = 'test.pstore'
+        Anemone::Storage.PStore(test_file).should be_an_instance_of(Anemone::Storage::PStore)
+      end
     end
 
-    it "should have a class method to produce a TokyoCabinet" do
-      test_file = 'test.tch'
-      Anemone::Storage.should respond_to(:TokyoCabinet)
-      store = Anemone::Storage.TokyoCabinet(test_file)
-      store.should be_an_instance_of(Anemone::Storage::TokyoCabinet)
-      store.close
+    describe ".TokyoCabinet" do
+      it "returns a TokyoCabinet adapter" do
+        test_file = 'test.tch'
+        store = Anemone::Storage.TokyoCabinet(test_file)
+        store.should be_an_instance_of(Anemone::Storage::TokyoCabinet)
+        store.close
+      end
     end
 
-    it "should have a class method to produce a MongoDB" do
-      Anemone::Storage.should respond_to(:MongoDB)
-      store = Anemone::Storage.MongoDB
-      store.should be_an_instance_of(Anemone::Storage::MongoDB)
-      store.close
+    describe ".KyotoCabinet" do
+      context "when the file is specified" do
+        it "returns a KyotoCabinet adapter using that file" do
+          test_file = 'test.kch'
+          store = Anemone::Storage.KyotoCabinet(test_file)
+          store.should be_an_instance_of(Anemone::Storage::KyotoCabinet)
+          store.close
+        end
+      end
+
+      context "when no file is specified" do
+        it "returns a KyotoCabinet adapter using the default filename" do
+          store = Anemone::Storage.KyotoCabinet
+          store.should be_an_instance_of(Anemone::Storage::KyotoCabinet)
+          store.close
+        end
+      end
     end
 
-    it "should have a class method to produce a Redis" do
-      Anemone::Storage.should respond_to(:Redis)
-      store = Anemone::Storage.Redis
-      store.should be_an_instance_of(Anemone::Storage::Redis)
-      store.close
+    describe ".SQLite3" do
+      it "returns a SQLite3 adapter" do
+        test_file = 'test.db'
+        store = Anemone::Storage.SQLite3(test_file)
+        store.should be_an_instance_of(Anemone::Storage::SQLite3)
+        store.close
+      end
+    end
+
+    describe ".MongoDB" do
+      it "returns a MongoDB adapter" do
+        store = Anemone::Storage.MongoDB
+        store.should be_an_instance_of(Anemone::Storage::MongoDB)
+        store.close
+      end
+    end
+
+    describe ".MongoDB" do
+      it "returns a Redis adapter" do
+        store = Anemone::Storage.Redis
+        store.should be_an_instance_of(Anemone::Storage::Redis)
+        store.close
+      end
     end
 
     module Storage
@@ -103,6 +138,12 @@ module Anemone
 
           merged.should === @store
         end
+
+        it "should correctly deserialize nil redirect_to when loading" do
+          @page.redirect_to.should be_nil
+          @store[@url] = @page 
+          @store[@url].redirect_to.should be_nil
+        end
       end
 
       describe PStore do
@@ -139,6 +180,47 @@ module Anemone
         it "should raise an error if supplied with a file extension other than .tch" do
           lambda { Anemone::Storage.TokyoCabinet('test.tmp') }.should raise_error(RuntimeError)
         end
+      end
+
+      describe KyotoCabinet do
+        it_should_behave_like "storage engine"
+
+        before(:each) do
+          @test_file = 'test.kch'
+          File.delete @test_file rescue nil
+          @store =  Anemone::Storage.KyotoCabinet(@test_file)
+        end
+
+        after(:each) do
+          @store.close
+        end
+
+        after(:all) do
+          File.delete @test_file rescue nil
+        end
+
+        it "should raise an error if supplied with a file extension other than .kch" do
+          lambda { Anemone::Storage.KyotoCabinet('test.tmp') }.should raise_error(RuntimeError)
+        end
+      end
+
+      describe SQLite3 do
+        it_should_behave_like "storage engine"
+
+        before(:each) do
+          @test_file = 'test.db'
+          File.delete @test_file rescue nil
+          @store =  Anemone::Storage.SQLite3(@test_file)
+        end
+
+        after(:each) do
+          @store.close
+        end
+
+        after(:all) do
+          File.delete @test_file rescue nil
+        end
+
       end
 
       describe Storage::MongoDB do

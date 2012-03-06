@@ -1,5 +1,6 @@
-require File.dirname(__FILE__) + '/spec_helper'
-%w[pstore tokyo_cabinet mongodb redis].each { |file| require "anemone/storage/#{file}.rb" }
+$:.unshift(File.dirname(__FILE__))
+require 'spec_helper'
+%w[pstore tokyo_cabinet sqlite3 mongodb redis].each { |file| require "anemone/storage/#{file}.rb" }
 
 module Anemone
   describe PageStore do
@@ -101,7 +102,7 @@ module Anemone
         @opts = {:storage => Storage.PStore(@test_file)}
       end
 
-      after(:all) do
+      after(:each) do
         File.delete(@test_file) if File.exists?(@test_file)
       end
     end
@@ -119,7 +120,25 @@ module Anemone
         @store.close
       end
 
-      after(:all) do
+      after(:each) do
+        File.delete(@test_file) if File.exists?(@test_file)
+      end
+    end
+
+    describe Storage::SQLite3 do
+      it_should_behave_like "page storage"
+
+      before(:each) do
+        @test_file = 'test.db'
+        File.delete(@test_file) if File.exists?(@test_file)
+        @opts = {:storage => @store = Storage.SQLite3(@test_file)}
+      end
+
+      after(:each) do
+        @store.close
+      end
+
+      after(:each) do
         File.delete(@test_file) if File.exists?(@test_file)
       end
     end
