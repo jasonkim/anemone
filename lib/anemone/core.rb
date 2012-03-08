@@ -155,11 +155,11 @@ module Anemone
       return if @urls.empty?
 
       link_queue = @opts[:large_scale_crawl] ? ExtQueue.new(10000,"link") : Queue.new
-      page_queue = @opts[:large_scale_crawl] ? ExtQueue.new(600,'page') : Queue.new
+      page_queue = @opts[:large_scale_crawl] ? ExtQueue.new(1000,'page') : Queue.new
 
       @urls.each{ |url| link_queue.enq([url]) }
 
-      @tentacles << Thread.new { Tentacle.new(link_queue, page_queue, @opts,1).run; }
+      @tentacles << Thread.new { Tentacle.new(link_queue, page_queue, @opts).run; }
 
       loop do
         page = page_queue.deq
@@ -178,7 +178,7 @@ module Anemone
 
         # Add more threads if applicable
         if link_queue.length > @tentacles.length*2 and @opts[:threads] > @tentacles.length
-          @tentacles << Thread.new { Tentacle.new(link_queue, page_queue, @opts, @tentacles.length+1).run; }
+          @tentacles << Thread.new { Tentacle.new(link_queue, page_queue, @opts).run; }
         end
 
         # if we are done with the crawl, tell the threads to end

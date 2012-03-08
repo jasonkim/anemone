@@ -1,5 +1,3 @@
-require 'psych'
-require "yaml"
 require 'thread'
 
 class ExtQueue
@@ -28,7 +26,7 @@ class ExtQueue
     @num = (@max_elem * @swap_fraction).ceil
 
     # filename prefix for the storage
-    @prefix = prefix
+    @prefix = "#{Process.pid}#{prefix}"
 
     @data.taint
     @waiting.taint
@@ -126,7 +124,7 @@ class ExtQueue
   def writeToDisk
     File.open("#{@prefix}#{@q_max}.anemone","w+") do |file|
       popped = @data.pop(@num)
-      popped.each { |elem| file.puts YAML::dump(elem) }
+      popped.each { |elem| file.puts Marshal::dump(elem) }
       @q_max += 1
     end
   end
@@ -135,7 +133,7 @@ class ExtQueue
     $/="\n\n"
     f = File.open("#{@prefix}#{@q_min}.anemone","r")
     f.each do |obj|
-      @data.unshift( YAML::load(obj) )
+      @data.unshift( Marshal::load(obj) )
     end
     f.close
     @q_min += 1
